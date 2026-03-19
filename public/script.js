@@ -1,19 +1,17 @@
 const form = document.getElementById("analysis-form");
 const provinceSelect = document.getElementById("province");
 const citySelect = document.getElementById("city");
+const resultPanelHead = document.getElementById("result-panel-head");
 const resultEmpty = document.getElementById("result-empty");
 const resultContent = document.getElementById("result-content");
 const submitButton = document.getElementById("submit-button");
 const formStatus = document.getElementById("form-status");
-const resultEngineNode = document.getElementById("result-engine");
-const shareCardNode = document.getElementById("share-card");
-const copyShareButton = document.getElementById("copy-share");
 
-const riskScoreNode = document.getElementById("risk-score");
-const riskLevelNode = document.getElementById("risk-level");
 const resultTitleNode = document.getElementById("result-title");
 const resultDescriptionNode = document.getElementById("result-description");
 const reasonsList = document.getElementById("reasons-list");
+const cityInsightList = document.getElementById("city-insight-list");
+const companyInsightList = document.getElementById("company-insight-list");
 const strengthsList = document.getElementById("strengths-list");
 const actionsList = document.getElementById("actions-list");
 const nextPathNode = document.getElementById("next-path");
@@ -54,9 +52,8 @@ let latestReport = null;
 
 provinceSelect.addEventListener("change", handleProvinceChange);
 form.addEventListener("submit", handleSubmit);
-copyShareButton.addEventListener("click", handleCopyShare);
 
-setStatus("这个版本会通过服务端实时调用 MiniMax 生成分析结果。");
+setStatus("填写岗位、城市和公司环境后，就能生成更贴近现实的职业判断。");
 handleProvinceChange();
 
 function handleProvinceChange() {
@@ -102,7 +99,6 @@ async function handleSubmit(event) {
       throw new Error(payload.detail || payload.error || "分析失败，请稍后重试。");
     }
 
-    payload.shareText = buildShareText(payload);
     latestReport = payload;
     renderReport(payload);
     setStatus("MiniMax 实时分析完成。");
@@ -114,23 +110,16 @@ async function handleSubmit(event) {
   }
 }
 
-async function handleCopyShare() {
-  if (!latestReport) {
-    setStatus("先生成一份报告，再复制分享文案。");
-    return;
-  }
-
-  try {
-    await navigator.clipboard.writeText(latestReport.shareText);
-    setStatus("分享文案已复制到剪贴板。");
-  } catch (_error) {
-    setStatus("复制失败了，你可以手动复制结果卡中的内容。");
-  }
-}
-
 function setLoading(isLoading) {
+  Array.from(form.elements).forEach((element) => {
+    element.disabled = isLoading;
+  });
   submitButton.disabled = isLoading;
   submitButton.textContent = isLoading ? "正在生成报告..." : "生成 AI 分析报告";
+
+  if (!isLoading) {
+    handleProvinceChange();
+  }
 }
 
 function setStatus(text) {
@@ -138,20 +127,19 @@ function setStatus(text) {
 }
 
 function renderReport(report) {
+  resultPanelHead.classList.add("hidden");
   resultEmpty.classList.add("hidden");
   resultContent.classList.remove("hidden");
 
-  riskScoreNode.textContent = report.score;
-  riskLevelNode.textContent = report.level.label;
   resultTitleNode.textContent = report.title;
   resultDescriptionNode.textContent = report.description;
-  resultEngineNode.textContent = report.engineLabel;
 
   fillList(reasonsList, report.reasons);
+  fillList(cityInsightList, report.cityInsights);
+  fillList(companyInsightList, report.companyInsights);
   fillList(strengthsList, report.strengths);
   fillList(actionsList, report.actions);
   nextPathNode.textContent = report.nextPath;
-  shareCardNode.textContent = report.shareText;
 
   resultContent.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -163,14 +151,4 @@ function fillList(node, items) {
     li.textContent = item;
     node.appendChild(li);
   });
-}
-
-function buildShareText(report) {
-  return [
-    "我刚测了一个「你的工作，会被 AI 替代吗？」页面",
-    report.title,
-    `替代风险指数：${report.score} / 100`,
-    `结论：${report.description}`,
-    `我的下一步建议：${report.nextPath}`,
-  ].join("\n");
 }
