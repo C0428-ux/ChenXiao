@@ -29,8 +29,9 @@
           <h2>你会得到什么？</h2>
           <ul>
             <li>替代风险等级与指数</li>
+            <li>城市发展与产业方向修正</li>
+            <li>公司是否会继续重点培养你</li>
             <li>最容易被 AI 替代的工作环节</li>
-            <li>你的岗位仍然保有的优势</li>
             <li>短期改善建议和升级方向</li>
           </ul>
         </div>
@@ -314,9 +315,9 @@
         </section>
 
         <section class="panel result-panel">
-          <div class="panel-head">
+          <div id="result-panel-head" class="panel-head">
             <h2>查看你的替代风险分析</h2>
-            <p>先填写左侧信息，系统会在这里生成你的专属结果。</p>
+            <p>先填写左侧信息，系统会结合岗位、城市和行业背景推断你的专属结果。</p>
           </div>
 
           <div id="result-empty" class="result-empty">
@@ -326,12 +327,6 @@
 
           <div id="result-content" class="result-content hidden">
             <div class="result-summary">
-              <div class="score-card">
-                <span>替代风险指数</span>
-                <strong id="risk-score">0</strong>
-                <em id="risk-level">待分析</em>
-                <small id="result-engine">分析方式：MiniMax 实时分析</small>
-              </div>
               <div class="summary-copy">
                 <h3 id="result-title">结果标题</h3>
                 <p id="result-description"></p>
@@ -342,6 +337,16 @@
               <article class="result-block">
                 <h4>为什么 AI 可能替代你的一部分工作？</h4>
                 <ul id="reasons-list"></ul>
+              </article>
+
+              <article class="result-block">
+                <h4>城市环境与政策走向</h4>
+                <ul id="city-insight-list"></ul>
+              </article>
+
+              <article class="result-block">
+                <h4>公司会不会重点培养你</h4>
+                <ul id="company-insight-list"></ul>
               </article>
 
               <article class="result-block">
@@ -359,18 +364,6 @@
                 <div id="next-path" class="next-path"></div>
               </article>
             </div>
-
-            <section class="share-panel">
-              <div class="share-panel-head">
-                <div>
-                  <h3>生成结果分享文案</h3>
-                </div>
-                <button type="button" id="copy-share" class="secondary-button">
-                  复制分享文案
-                </button>
-              </div>
-              <div id="share-card" class="share-card"></div>
-            </section>
           </div>
         </section>
       </main>
