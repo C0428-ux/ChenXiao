@@ -53,7 +53,7 @@ let latestReport = null;
 provinceSelect.addEventListener("change", handleProvinceChange);
 form.addEventListener("submit", handleSubmit);
 
-setStatus("填写岗位、城市和公司环境后，就能生成更贴近现实的职业判断。");
+setStatus("填写岗位、城市和工作特征后，就能生成更贴近现实的职业判断。");
 handleProvinceChange();
 
 function handleProvinceChange() {
@@ -127,24 +127,33 @@ function setStatus(text) {
 }
 
 function renderReport(report) {
-  resultPanelHead.classList.add("hidden");
-  resultEmpty.classList.add("hidden");
-  resultContent.classList.remove("hidden");
+  resultPanelHead?.classList.add("hidden");
+  resultEmpty?.classList.add("hidden");
+  resultContent?.classList.remove("hidden");
 
-  resultTitleNode.textContent = report.title;
-  resultDescriptionNode.textContent = report.description;
+  if (resultTitleNode) {
+    resultTitleNode.textContent = report.title;
+  }
+  if (resultDescriptionNode) {
+    resultDescriptionNode.textContent = report.description;
+  }
 
   fillList(reasonsList, report.reasons);
   fillList(cityInsightList, report.cityInsights);
   fillList(companyInsightList, report.companyInsights);
   fillList(strengthsList, report.strengths);
   fillList(actionsList, report.actions);
-  nextPathNode.textContent = report.nextPath;
+  if (nextPathNode) {
+    nextPathNode.textContent = report.nextPath;
+  }
 
-  resultContent.scrollIntoView({ behavior: "smooth", block: "start" });
+  resultContent?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function fillList(node, items) {
+  if (!node) {
+    return;
+  }
   node.innerHTML = "";
   items.forEach((item) => {
     const li = document.createElement("li");
