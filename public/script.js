@@ -50,13 +50,13 @@ const cityOptions = {
 
 let latestReport = null;
 
-provinceSelect.addEventListener("change", handleProvinceChange);
+provinceSelect.addEventListener("change", () => handleProvinceChange(""));
 form.addEventListener("submit", handleSubmit);
 
 setStatus("填写岗位、城市和工作特征后，就能生成更贴近现实的职业判断。");
-handleProvinceChange();
+handleProvinceChange("");
 
-function handleProvinceChange() {
+function handleProvinceChange(preferredCity = citySelect.value) {
   const province = provinceSelect.value;
   const cities = cityOptions[province] || [];
 
@@ -71,8 +71,12 @@ function handleProvinceChange() {
   citySelect.disabled = false;
   citySelect.append(new Option("请选择城市", ""));
   cities.forEach((city) => {
-    citySelect.append(new Option(city, city));
+    citySelect.append(new Option(city, city, false, city === preferredCity));
   });
+
+  if (preferredCity && cities.includes(preferredCity)) {
+    citySelect.value = preferredCity;
+  }
 }
 
 async function handleSubmit(event) {
@@ -118,7 +122,7 @@ function setLoading(isLoading) {
   submitButton.textContent = isLoading ? "正在生成报告..." : "生成 AI 分析报告";
 
   if (!isLoading) {
-    handleProvinceChange();
+    handleProvinceChange(citySelect.value);
   }
 }
 
