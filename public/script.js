@@ -101,7 +101,7 @@ async function handleSubmit(event) {
 
     latestReport = payload;
     renderReport(payload);
-    setStatus("MiniMax 实时分析完成。");
+    setStatus("分析报告已生成。");
   } catch (error) {
     console.error(error);
     setStatus(error.message || "分析失败，请稍后重试。");

@@ -1,13 +1,13 @@
-# AI 岗位替代风险测试
+# 职途先见
 
-这是基于 MiniMax 的可上线前后端分离版本。
+这是基于 MiniMax 的可上线前后端分离版本，主打职业趋势、岗位风险与城市机会判断。
 
 ## 项目结构
 
 - `public/`：前端静态页面
 - `server.js`：后端服务，负责安全调用 MiniMax
 - `.env.example`：环境变量示例
-- `vercel.json`：Vercel 部署配置
+- `vercel.json`：Vercel 部署配置（可选）
 
 ## 本地启动
 
@@ -36,7 +36,14 @@
 
 ## 部署
 
-可以直接部署到 Vercel 或自己的 Node.js 服务器。
+可以直接部署到 Railway、Render、Vercel 或自己的 Node.js 服务器。
+
+### Railway
+
+- 使用 GitHub 仓库导入项目
+- Railway 会自动识别 `package.json` 并执行 `npm start`
+- 在 Variables 里配置 `MINIMAX_API_KEY`
+- 可选配置 `MINIMAX_MODEL`
 
 ### Vercel
 

@@ -2,7 +2,7 @@
   "name": "ai-job-risk-checker",
   "version": "1.0.0",
   "private": true,
-  "description": "AI 岗位替代风险测试，基于 MiniMax 的可部署前后端分离版本",
+  "description": "职途先见，基于 MiniMax 的职业趋势与岗位风险分析产品",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js"

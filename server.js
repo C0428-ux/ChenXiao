@@ -895,4 +895,3 @@ function extractRelevantSnippet(text, keywords) {
 
   return text.slice(0, 220).trim();
 }
-   

@@ -121,11 +121,6 @@ h1 {
   line-height: 1.7;
   font-size: 1.02rem;
 }
-.score-card strong {
-  display: block;
-  font-family: "Space Grotesk", sans-serif;
-}
-
 .hero-card {
   padding: 24px;
   background:
@@ -161,7 +156,6 @@ h1 {
 }
 
 
-.share-card,
 .next-path,
 .result-block ul {
   line-height: 1.8;
@@ -189,16 +183,6 @@ h1 {
   color: var(--accent);
   margin: 0 0 10px;
   font-size: 0.92rem;
-}
-
-.secondary-button {
-  border: 1px solid rgba(23, 23, 23, 0.08);
-  background: rgba(255, 255, 255, 0.76);
-  color: var(--ink);
-  border-radius: 999px;
-  padding: 11px 16px;
-  cursor: pointer;
-  transition: 180ms ease;
 }
 
 .api-panel {
@@ -239,6 +223,7 @@ h1 {
   grid-template-columns: 1fr 1fr 0.7fr;
   gap: 16px;
 }
+
 
 label {
   display: grid;
@@ -307,8 +292,7 @@ input[type="range"] {
   box-shadow: 0 12px 24px rgba(255, 95, 46, 0.24);
 }
 
-.primary-button:hover,
-.secondary-button:hover {
+.primary-button:hover {
   transform: translateY(-2px);
 }
 
@@ -319,9 +303,7 @@ input[type="range"] {
 
 .result-empty,
 .result-block,
-.score-card,
-.next-path,
-.share-card {
+.next-path {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.62);
 }
@@ -346,43 +328,12 @@ input[type="range"] {
 }
 
 .result-summary {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 18px;
+  display: block;
   margin-bottom: 20px;
 }
 
-.score-card {
-  border-radius: 22px;
-  padding: 20px;
-  background: linear-gradient(180deg, var(--accent-soft), rgba(255, 255, 255, 0.76));
-}
-
-.score-card span,
-.score-card em,
-.score-card small {
-  display: block;
-}
-
-.score-card strong {
-  font-size: 4rem;
-  margin: 10px 0;
-}
-
-.score-card em {
-  font-style: normal;
-  font-weight: 800;
-  color: var(--accent-deep);
-}
-
-.score-card small {
-  margin-top: 12px;
-  color: var(--muted);
-  line-height: 1.6;
-}
-
 .summary-copy {
-  padding: 8px 4px;
+  padding: 4px 4px 0;
 }
 
 .summary-copy h3 {
@@ -397,8 +348,7 @@ input[type="range"] {
 }
 
 .result-block,
-.next-path,
-.share-card {
+.next-path {
   border-radius: 20px;
   padding: 20px;
 }
@@ -415,29 +365,6 @@ input[type="range"] {
 
 .next-path {
   background: linear-gradient(180deg, var(--teal-soft), rgba(255, 255, 255, 0.7));
-}
-
-.share-panel {
-  margin-top: 18px;
-}
-
-.share-panel-head {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.share-panel-head h3 {
-  font-size: 1.2rem;
-}
-
-.share-card {
-  background:
-    radial-gradient(circle at top right, rgba(255, 95, 46, 0.18), transparent 30%),
-    linear-gradient(180deg, rgba(21, 79, 83, 0.08), rgba(255, 255, 255, 0.82));
-  white-space: pre-wrap;
 }
 
 @media (max-width: 980px) {
@@ -463,14 +390,9 @@ input[type="range"] {
   }
 
   .grid-two,
-  .grid-three,
-  .share-panel-head {
+  .grid-three {
     grid-template-columns: 1fr;
     display: grid;
-  }
-
-  .share-panel-head {
-    align-items: start;
   }
 
   h1 {
