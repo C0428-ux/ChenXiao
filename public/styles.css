@@ -53,7 +53,8 @@ body::before {
 }
 
 .hero,
-.layout {
+.layout,
+.studio-layout {
   display: grid;
   gap: 24px;
 }
@@ -163,6 +164,12 @@ h1 {
 
 .layout {
   grid-template-columns: 1fr 1fr;
+  align-items: start;
+}
+
+.studio-layout {
+  grid-template-columns: 1fr 1fr;
+  margin-top: 24px;
   align-items: start;
 }
 
@@ -280,6 +287,18 @@ input[type="range"] {
   margin: -4px 0 0;
 }
 
+.form-note {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.action-row {
+  display: flex;
+  gap: 12px;
+}
+
 .primary-button {
   border: none;
   border-radius: 18px;
@@ -292,11 +311,27 @@ input[type="range"] {
   box-shadow: 0 12px 24px rgba(255, 95, 46, 0.24);
 }
 
+.secondary-button,
+.link-button {
+  border: 1px solid rgba(21, 79, 83, 0.14);
+  border-radius: 18px;
+  padding: 16px 18px;
+  font-weight: 700;
+  background: rgba(21, 79, 83, 0.08);
+  color: var(--teal);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .primary-button:hover {
   transform: translateY(-2px);
 }
 
-.primary-button:disabled {
+.primary-button:disabled,
+.secondary-button:disabled {
   opacity: 0.65;
   cursor: wait;
 }
@@ -367,9 +402,61 @@ input[type="range"] {
   background: linear-gradient(180deg, var(--teal-soft), rgba(255, 255, 255, 0.7));
 }
 
+.promo-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.promo-copy h3 {
+  font-size: 1.28rem;
+  margin-bottom: 10px;
+}
+
+.promo-copy p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.promo-poster-copy {
+  margin-top: 10px !important;
+}
+
+.promo-script-list {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.8;
+}
+
+.promo-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.promo-image-card {
+  display: grid;
+  gap: 10px;
+}
+
+.promo-image-card img,
+.promo-video {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.promo-meta {
+  margin: 0 0 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
 @media (max-width: 980px) {
   .hero,
   .layout,
+  .studio-layout,
   .result-summary,
   .result-grid {
     grid-template-columns: 1fr;
@@ -393,6 +480,10 @@ input[type="range"] {
   .grid-three {
     grid-template-columns: 1fr;
     display: grid;
+  }
+
+  .action-row {
+    flex-direction: column;
   }
 
   h1 {

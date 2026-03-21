@@ -368,6 +368,147 @@
         </section>
       </main>
 
+      <section class="studio-layout">
+        <section class="panel studio-panel">
+          <div class="panel-head">
+            <h2>宣传素材工作台</h2>
+            <p>输入产品卖点和用户痛点，直接生成图片海报、短视频提示和成片任务。</p>
+          </div>
+
+          <form id="promo-form" class="analysis-form">
+            <div class="grid-two">
+              <label>
+                产品名称
+                <input type="text" name="productName" value="职途先见" required />
+              </label>
+              <label>
+                目标用户
+                <input
+                  type="text"
+                  name="targetAudience"
+                  value="担心岗位被 AI 重构、又不知道下一步怎么升级的职场人"
+                  required
+                />
+              </label>
+            </div>
+
+            <label>
+              用户痛点
+              <textarea
+                name="painPoint"
+                rows="3"
+                placeholder="例如：担心岗位被优化，但不知道自己最先会被替代的是哪一部分工作。"
+                required
+              >担心岗位被 AI 重构，但不知道自己最先会被替代的是哪一部分工作，也不知道该往哪里升级。</textarea>
+            </label>
+
+            <label>
+              核心卖点
+              <textarea
+                name="coreValue"
+                rows="3"
+                placeholder="例如：输入职业、城市、行业和工作内容，快速得到职业趋势与转岗建议。"
+                required
+              >输入职业、城市、行业和工作内容，快速得到职业趋势分析、转岗建议、城市机会判断和行业变化预警。</textarea>
+            </label>
+
+            <div class="grid-two">
+              <label>
+                宣传风格
+                <select name="brandTone" required>
+                  <option value="未来感科技">未来感科技</option>
+                  <option value="专业可信">专业可信</option>
+                  <option value="痛点冲击">痛点冲击</option>
+                  <option value="高端极简">高端极简</option>
+                </select>
+              </label>
+              <label>
+                使用场景
+                <input
+                  type="text"
+                  name="usageScenario"
+                  value="短视频投流封面、信息流宣传图、产品介绍视频"
+                />
+              </label>
+            </div>
+
+            <div class="grid-two">
+              <label>
+                行动引导
+                <input type="text" name="callToAction" value="立即测你的岗位未来" required />
+              </label>
+              <label>
+                参考图
+                <input type="file" id="reference-image" name="referenceImage" accept="image/*" />
+              </label>
+            </div>
+
+            <div class="grid-two">
+              <label>
+                图片比例
+                <select name="imageRatio" required>
+                  <option value="4:5">4:5（官方近似为 3:4）</option>
+                  <option value="16:9">16:9</option>
+                </select>
+              </label>
+              <label>
+                视频时长
+                <select name="videoDuration" required>
+                  <option value="10">10 秒（官方当前上限）</option>
+                  <option value="6">6 秒</option>
+                </select>
+              </label>
+            </div>
+
+            <p class="form-note">
+              MiniMax 当前图片不支持原生 4:5，系统会自动用最接近的 3:4；视频当前最高支持 10 秒。
+            </p>
+
+            <div class="action-row">
+              <button type="button" id="generate-image-button" class="primary-button">生成宣传图</button>
+              <button type="button" id="generate-video-button" class="secondary-button">生成宣传视频</button>
+            </div>
+            <p id="promo-status" class="form-status"></p>
+          </form>
+        </section>
+
+        <section class="panel studio-panel">
+          <div class="panel-head">
+            <h2>生成结果</h2>
+            <p>先生成文案和视觉提示，再查看图片结果或视频任务进度。</p>
+          </div>
+
+          <div class="promo-stack">
+            <article class="result-block">
+              <h4>宣传文案</h4>
+              <div class="promo-copy">
+                <h3 id="promo-headline">还没有生成宣传文案</h3>
+                <p id="promo-subheadline"></p>
+                <p id="promo-poster-copy" class="promo-poster-copy"></p>
+              </div>
+            </article>
+
+            <article class="result-block">
+              <h4>短视频分镜文案</h4>
+              <ul id="promo-video-script" class="promo-script-list"></ul>
+            </article>
+
+            <article class="result-block">
+              <h4>宣传图结果</h4>
+              <p id="promo-image-note" class="promo-meta"></p>
+              <div id="promo-image-results" class="promo-image-grid"></div>
+            </article>
+
+            <article class="result-block">
+              <h4>宣传视频结果</h4>
+              <p id="promo-video-note" class="promo-meta"></p>
+              <video id="promo-video-player" class="promo-video hidden" controls playsinline></video>
+              <a id="promo-video-download" class="link-button hidden" target="_blank" rel="noreferrer">下载视频</a>
+            </article>
+          </div>
+        </section>
+      </section>
+
     </div>
 
     <script src="./script.js"></script>

@@ -2,12 +2,22 @@ require("dotenv").config();
 
 const express = require("express");
 const OpenAI = require("openai");
+const fs = require("fs");
+const os = require("os");
 const path = require("path");
+const crypto = require("crypto");
+const multer = require("multer");
 const { setTimeout: delay } = require("timers/promises");
 
 const app = express();
 const port = process.env.PORT || 3000;
 const model = process.env.MINIMAX_MODEL || "MiniMax-M2.5";
+const imageModel = process.env.MINIMAX_IMAGE_MODEL || "image-01";
+const videoModel = process.env.MINIMAX_VIDEO_MODEL || "MiniMax-Hailuo-2.3";
+const runtimeRoot = path.join(os.tmpdir(), "zhituxianjian-runtime");
+const uploadRoot = path.join(runtimeRoot, "uploads");
+
+fs.mkdirSync(uploadRoot, { recursive: true });
 
 const client = process.env.MINIMAX_API_KEY
   ? new OpenAI({
@@ -18,9 +28,30 @@ const client = process.env.MINIMAX_API_KEY
 
 const policyCache = new Map();
 const policyCacheTtlMs = 1000 * 60 * 60 * 6;
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadRoot),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase() || ".png";
+      cb(null, `${Date.now()}-${crypto.randomUUID()}${ext}`);
+    },
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) {
+      cb(new Error("Reference image must be an image file."));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
+app.set("trust proxy", true);
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/runtime/uploads", express.static(uploadRoot, { maxAge: "1d" }));
 
 app.post("/api/analyze", async (req, res) => {
   if (!client) {
@@ -80,6 +111,199 @@ app.post("/api/analyze", async (req, res) => {
   }
 });
 
+app.post("/api/promo/image", upload.single("referenceImage"), async (req, res) => {
+  const mediaKeyError = getMediaApiKeyError();
+  if (mediaKeyError) {
+    return res.status(500).json({
+      error: mediaKeyError,
+    });
+  }
+
+  const input = sanitizePromoInput(req.body || {});
+  const missingFields = getMissingPromoFields(input);
+
+  if (missingFields.length) {
+    return res.status(400).json({
+      error: `Missing required fields: ${missingFields.join(", ")}`,
+    });
+  }
+
+  const referenceImageUrl = getReferenceImageUrl(req, req.file);
+  const creative = await generatePromoCreative(input);
+  const aspectRatioApplied = normalizeImageAspectRatio(input.imageRatio);
+  const payload = {
+    model: imageModel,
+    prompt: creative.imagePrompt,
+    aspect_ratio: aspectRatioApplied,
+    n: 1,
+  };
+
+  if (referenceImageUrl) {
+    payload.subject_reference = [
+      {
+        type: "character",
+        image_file: referenceImageUrl,
+      },
+    ];
+  }
+
+  try {
+    const response = await miniMaxJsonRequest("/image_generation", {
+      method: "POST",
+      body: payload,
+    });
+
+    const images = Array.isArray(response?.data?.image_urls)
+      ? response.data.image_urls.filter(Boolean)
+      : [];
+
+    if (!images.length) {
+      throw new Error("MiniMax image generation returned no image URLs.");
+    }
+
+    res.json({
+      creative,
+      images,
+      referenceImageUrl,
+      aspectRatioRequested: input.imageRatio,
+      aspectRatioApplied,
+      note:
+        input.imageRatio === "4:5"
+          ? "MiniMax 当前不支持原生 4:5，已自动使用最接近的 3:4。"
+          : "",
+    });
+  } catch (error) {
+    console.error("Promo image error:", error);
+    res.status(500).json({
+      error: "MiniMax image generation failed.",
+      detail: error.message,
+    });
+  }
+});
+
+app.post("/api/promo/video", upload.single("referenceImage"), async (req, res) => {
+  const mediaKeyError = getMediaApiKeyError();
+  if (mediaKeyError) {
+    return res.status(500).json({
+      error: mediaKeyError,
+    });
+  }
+
+  const input = sanitizePromoInput(req.body || {});
+  const missingFields = getMissingPromoFields(input);
+
+  if (missingFields.length) {
+    return res.status(400).json({
+      error: `Missing required fields: ${missingFields.join(", ")}`,
+    });
+  }
+
+  const referenceImageUrl = getReferenceImageUrl(req, req.file);
+  const creative = await generatePromoCreative(input);
+  const duration = normalizeVideoDuration(input.videoDuration);
+  const payload = {
+    model: videoModel,
+    prompt: creative.videoPrompt,
+    duration,
+    resolution: duration >= 10 ? "768P" : "1080P",
+  };
+
+  if (referenceImageUrl) {
+    payload.first_frame_image = referenceImageUrl;
+  }
+
+  try {
+    const response = await miniMaxJsonRequest("/video_generation", {
+      method: "POST",
+      body: payload,
+    });
+
+    const taskId = response?.task_id;
+
+    if (!taskId) {
+      throw new Error("MiniMax video generation returned no task_id.");
+    }
+
+    res.json({
+      creative,
+      taskId,
+      status: "processing",
+      referenceImageUrl,
+      durationRequested: input.videoDuration,
+      durationApplied: duration,
+      resolutionApplied: payload.resolution,
+      note:
+        Number(input.videoDuration) > 10
+          ? "MiniMax 当前最高只支持 10s，已自动按 10s 创建任务。"
+          : "",
+    });
+  } catch (error) {
+    console.error("Promo video error:", error);
+    res.status(500).json({
+      error: "MiniMax video generation failed.",
+      detail: error.message,
+    });
+  }
+});
+
+app.get("/api/promo/video/:taskId", async (req, res) => {
+  const mediaKeyError = getMediaApiKeyError();
+  if (mediaKeyError) {
+    return res.status(500).json({
+      error: mediaKeyError,
+    });
+  }
+
+  try {
+    const response = await miniMaxRawRequest(`/query/video_generation?task_id=${encodeURIComponent(req.params.taskId)}`, {
+      method: "GET",
+    });
+    const statusText = normalizeVideoStatus(response.status || response.task_status || "");
+
+    if (statusText === "success") {
+      const fileId =
+        response?.file_id ||
+        response?.video_file_id ||
+        response?.data?.file_id ||
+        response?.data?.video_file_id;
+
+      if (!fileId) {
+        throw new Error("Video task succeeded but no file_id was returned.");
+      }
+
+      const fileResponse = await miniMaxRawRequest(`/files/retrieve?file_id=${encodeURIComponent(fileId)}`, {
+        method: "GET",
+      });
+
+      res.json({
+        status: "success",
+        fileId,
+        downloadUrl: fileResponse.file?.download_url || fileResponse.download_url || "",
+      });
+      return;
+    }
+
+    if (statusText === "failed") {
+      res.json({
+        status: "failed",
+        detail: response?.base_resp?.status_msg || response?.message || "Video generation failed.",
+      });
+      return;
+    }
+
+    res.json({
+      status: "processing",
+      detail: response?.base_resp?.status_msg || response?.message || "Video generation is still in progress.",
+    });
+  } catch (error) {
+    console.error("Promo video poll error:", error);
+    res.status(500).json({
+      error: "MiniMax video status query failed.",
+      detail: error.message,
+    });
+  }
+});
+
 app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -104,6 +328,32 @@ function sanitizeInput(input) {
   };
 }
 
+function sanitizePromoInput(input) {
+  return {
+    productName: String(input.productName || "职途先见").trim(),
+    targetAudience: String(input.targetAudience || "").trim(),
+    painPoint: String(input.painPoint || "").trim(),
+    coreValue: String(input.coreValue || "").trim(),
+    brandTone: String(input.brandTone || "未来感科技").trim(),
+    usageScenario: String(input.usageScenario || "短视频投流封面与产品宣传图").trim(),
+    callToAction: String(input.callToAction || "立即测你的岗位未来").trim(),
+    imageRatio: String(input.imageRatio || "16:9").trim(),
+    videoDuration: Number(input.videoDuration || 10),
+  };
+}
+
+function getMediaApiKeyError() {
+  if (!process.env.MINIMAX_API_KEY) {
+    return "Server is missing MINIMAX_API_KEY. Set it in your environment before starting.";
+  }
+
+  if (String(process.env.MINIMAX_API_KEY).startsWith("sk-cp-")) {
+    return "当前配置的是 MiniMax Coding Plan Key，只支持文本模型。图片和视频生成需要按量计费的 Secret API Key。";
+  }
+
+  return "";
+}
+
 function getMissingFields(data) {
   const required = [
     "jobTitle",
@@ -119,6 +369,11 @@ function getMissingFields(data) {
     "digitization",
   ];
 
+  return required.filter((key) => !data[key]);
+}
+
+function getMissingPromoFields(data) {
+  const required = ["productName", "targetAudience", "painPoint", "coreValue", "callToAction"];
   return required.filter((key) => !data[key]);
 }
 
@@ -894,4 +1149,173 @@ function extractRelevantSnippet(text, keywords) {
   }
 
   return text.slice(0, 220).trim();
+}
+
+function getReferenceImageUrl(req, file) {
+  if (!file) {
+    return "";
+  }
+
+  return `${getPublicBaseUrl(req)}/runtime/uploads/${encodeURIComponent(path.basename(file.path))}`;
+}
+
+function getPublicBaseUrl(req) {
+  return `${req.protocol}://${req.get("host")}`;
+}
+
+function normalizeImageAspectRatio(imageRatio) {
+  if (imageRatio === "4:5") {
+    return "3:4";
+  }
+
+  if (imageRatio === "16:9") {
+    return "16:9";
+  }
+
+  return "16:9";
+}
+
+function normalizeVideoDuration(videoDuration) {
+  const numeric = Number(videoDuration);
+  if (!Number.isFinite(numeric)) {
+    return 10;
+  }
+
+  return Math.max(6, Math.min(10, Math.round(numeric)));
+}
+
+function normalizeVideoStatus(status) {
+  const normalized = String(status || "").trim().toLowerCase();
+
+  if (["success", "succeeded", "completed"].includes(normalized)) {
+    return "success";
+  }
+
+  if (["fail", "failed", "error"].includes(normalized)) {
+    return "failed";
+  }
+
+  return "processing";
+}
+
+async function generatePromoCreative(input) {
+  const fallback = buildPromoCreativeFallback(input);
+
+  if (!client) {
+    return fallback;
+  }
+
+  const prompt = `
+你是一个产品营销创意总监。请围绕给定产品，输出一套可直接用于图片海报和短视频生成的创意 JSON。
+要求：
+1. 只输出 JSON，不要输出 markdown。
+2. JSON 结构必须如下：
+{
+  "headline": "12-20字中文标题",
+  "subheadline": "25-40字中文副标题",
+  "posterCopy": "一段适合宣传图配文的中文文案，60字以内",
+  "imagePrompt": "English prompt for image generation, high quality, no extra text in image",
+  "videoPrompt": "English prompt for video generation, cinematic, product promo style",
+  "videoScript": ["镜头1文案", "镜头2文案", "镜头3文案"]
+}
+3. 核心方向：突出实用性、职业焦虑、提前预警、给出下一步动作，不要写空泛品牌口号。
+4. imagePrompt 和 videoPrompt 用英文输出，其他字段用中文。
+
+产品资料：
+${JSON.stringify(input, null, 2)}
+`;
+
+  try {
+    const response = await client.chat.completions.create({
+      model,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
+
+    const parsed = parseModelJson(extractOutputText(response));
+
+    return {
+      headline: parsed.headline || fallback.headline,
+      subheadline: parsed.subheadline || fallback.subheadline,
+      posterCopy: parsed.posterCopy || fallback.posterCopy,
+      imagePrompt: parsed.imagePrompt || fallback.imagePrompt,
+      videoPrompt: parsed.videoPrompt || fallback.videoPrompt,
+      videoScript: ensureTextList(parsed.videoScript, fallback.videoScript),
+    };
+  } catch (error) {
+    console.error("Promo creative fallback:", error);
+    return fallback;
+  }
+}
+
+function buildPromoCreativeFallback(input) {
+  return {
+    headline: `${input.productName}：先看清岗位风险，再决定下一步`,
+    subheadline: `围绕“${input.painPoint}”，把 ${input.coreValue} 讲清楚，让 ${input.targetAudience} 一眼知道为什么现在就该行动。`,
+    posterCopy: `${input.productName} 帮你快速判断岗位风险、城市机会和转岗方向，不等被动优化，先做职业预警。`,
+    imagePrompt: `Premium product advertisement poster for "${input.productName}", futuristic Chinese SaaS brand key visual, strong pain-point driven messaging, clean interface motif, glassmorphism dashboard, warm beige and orange palette, teal accent, professional and practical, high contrast, editorial lighting, no extra text, ad campaign composition, ${input.brandTone}, aspect-driven layout`,
+    videoPrompt: `Cinematic product promo video for "${input.productName}", show anxious office workers, AI replacing repetitive tasks, then reveal a clean dashboard that analyzes career risk and upgrade path, practical and credible tone, warm beige and orange palette, teal accent, modern Chinese tech product advertisement, smooth camera motion, high detail, ${input.brandTone}`,
+    videoScript: [
+      "你的工作，不一定会立刻消失，但可能已经开始被 AI 一点点接手。",
+      "别等公司开始优化你，先看清岗位风险、城市机会和升级方向。",
+      `${input.productName}，帮你把职业焦虑变成下一步动作。`,
+    ],
+  };
+}
+
+function ensureTextList(value, fallback) {
+  if (!Array.isArray(value) || !value.length) {
+    return fallback;
+  }
+
+  return value
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+async function miniMaxJsonRequest(route, options) {
+  const response = await miniMaxRawRequest(route, options);
+
+  if (response?.base_resp?.status_code && response.base_resp.status_code !== 0) {
+    throw new Error(response.base_resp.status_msg || "MiniMax request failed.");
+  }
+
+  return response;
+}
+
+async function miniMaxRawRequest(route, options) {
+  const response = await fetch(`https://api.minimaxi.com/v1${route}`, {
+    method: options.method || "GET",
+    headers: {
+      Authorization: `Bearer ${process.env.MINIMAX_API_KEY}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  const text = await response.text();
+  let payload = {};
+
+  try {
+    payload = text ? JSON.parse(text) : {};
+  } catch (_error) {
+    payload = { raw: text };
+  }
+
+  if (!response.ok) {
+    const message =
+      payload?.base_resp?.status_msg ||
+      payload?.message ||
+      payload?.error ||
+      `MiniMax request failed with status ${response.status}.`;
+    throw new Error(message);
+  }
+
+  return payload;
 }

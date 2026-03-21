@@ -15,6 +15,19 @@ const companyInsightList = document.getElementById("company-insight-list");
 const strengthsList = document.getElementById("strengths-list");
 const actionsList = document.getElementById("actions-list");
 const nextPathNode = document.getElementById("next-path");
+const promoForm = document.getElementById("promo-form");
+const promoStatus = document.getElementById("promo-status");
+const generateImageButton = document.getElementById("generate-image-button");
+const generateVideoButton = document.getElementById("generate-video-button");
+const promoHeadlineNode = document.getElementById("promo-headline");
+const promoSubheadlineNode = document.getElementById("promo-subheadline");
+const promoPosterCopyNode = document.getElementById("promo-poster-copy");
+const promoVideoScriptNode = document.getElementById("promo-video-script");
+const promoImageResultsNode = document.getElementById("promo-image-results");
+const promoImageNoteNode = document.getElementById("promo-image-note");
+const promoVideoNoteNode = document.getElementById("promo-video-note");
+const promoVideoPlayer = document.getElementById("promo-video-player");
+const promoVideoDownload = document.getElementById("promo-video-download");
 
 const cityOptions = {
   北京: ["北京"],
@@ -49,9 +62,12 @@ const cityOptions = {
 };
 
 let latestReport = null;
+let promoPollingTimer = null;
 
 provinceSelect.addEventListener("change", () => handleProvinceChange(""));
 form.addEventListener("submit", handleSubmit);
+generateImageButton?.addEventListener("click", () => handlePromoGenerate("image"));
+generateVideoButton?.addEventListener("click", () => handlePromoGenerate("video"));
 
 setStatus("填写岗位、城市和工作特征后，就能生成更贴近现实的职业判断。");
 handleProvinceChange("");
@@ -164,4 +180,161 @@ function fillList(node, items) {
     li.textContent = item;
     node.appendChild(li);
   });
+}
+
+async function handlePromoGenerate(kind) {
+  if (!promoForm) {
+    return;
+  }
+
+  const formData = new FormData(promoForm);
+  const endpoint = kind === "video" ? "/api/promo/video" : "/api/promo/image";
+
+  setPromoLoading(kind, true);
+  setPromoStatus(kind === "video" ? "正在创建视频任务..." : "正在生成宣传图...");
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      body: formData,
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.detail || payload.error || "生成失败，请稍后重试。");
+    }
+
+    renderPromoCreative(payload.creative);
+
+    if (kind === "image") {
+      renderPromoImages(payload.images || []);
+      promoImageNoteNode.textContent = payload.note || `已生成 ${payload.aspectRatioApplied} 比例宣传图。`;
+      setPromoStatus("宣传图已生成。");
+      return;
+    }
+
+    promoVideoNoteNode.textContent =
+      payload.note ||
+      `视频任务已创建，当前按 ${payload.durationApplied}s / ${payload.resolutionApplied} 生成。`;
+    setPromoStatus("视频任务已创建，正在轮询结果...");
+    startPromoVideoPolling(payload.taskId);
+  } catch (error) {
+    console.error(error);
+    setPromoStatus(error.message || "生成失败，请稍后重试。");
+  } finally {
+    setPromoLoading(kind, false);
+  }
+}
+
+function setPromoLoading(kind, isLoading) {
+  if (kind === "image" && generateImageButton) {
+    generateImageButton.disabled = isLoading;
+    generateImageButton.textContent = isLoading ? "生成中..." : "生成宣传图";
+  }
+
+  if (kind === "video" && generateVideoButton) {
+    generateVideoButton.disabled = isLoading;
+    generateVideoButton.textContent = isLoading ? "创建中..." : "生成宣传视频";
+  }
+}
+
+function setPromoStatus(text) {
+  if (promoStatus) {
+    promoStatus.textContent = text;
+  }
+}
+
+function renderPromoCreative(creative) {
+  if (!creative) {
+    return;
+  }
+
+  if (promoHeadlineNode) {
+    promoHeadlineNode.textContent = creative.headline || "";
+  }
+  if (promoSubheadlineNode) {
+    promoSubheadlineNode.textContent = creative.subheadline || "";
+  }
+  if (promoPosterCopyNode) {
+    promoPosterCopyNode.textContent = creative.posterCopy || "";
+  }
+  fillList(promoVideoScriptNode, creative.videoScript || []);
+}
+
+function renderPromoImages(images) {
+  if (!promoImageResultsNode) {
+    return;
+  }
+
+  promoImageResultsNode.innerHTML = "";
+
+  images.forEach((imageUrl) => {
+    const card = document.createElement("div");
+    card.className = "promo-image-card";
+
+    const img = document.createElement("img");
+    img.src = imageUrl;
+    img.alt = "生成的宣传图";
+    img.loading = "lazy";
+
+    const link = document.createElement("a");
+    link.href = imageUrl;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.className = "link-button";
+    link.textContent = "打开原图";
+
+    card.appendChild(img);
+    card.appendChild(link);
+    promoImageResultsNode.appendChild(card);
+  });
+}
+
+function startPromoVideoPolling(taskId) {
+  stopPromoVideoPolling();
+  pollPromoVideo(taskId);
+}
+
+async function pollPromoVideo(taskId) {
+  try {
+    const response = await fetch(`/api/promo/video/${encodeURIComponent(taskId)}`);
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.detail || payload.error || "视频查询失败。");
+    }
+
+    if (payload.status === "success") {
+      promoVideoNoteNode.textContent = "视频已生成，可以直接预览或下载。";
+      if (promoVideoPlayer) {
+        promoVideoPlayer.src = payload.downloadUrl;
+        promoVideoPlayer.classList.remove("hidden");
+      }
+      if (promoVideoDownload) {
+        promoVideoDownload.href = payload.downloadUrl;
+        promoVideoDownload.classList.remove("hidden");
+      }
+      setPromoStatus("宣传视频已生成。");
+      stopPromoVideoPolling();
+      return;
+    }
+
+    if (payload.status === "failed") {
+      throw new Error(payload.detail || "视频生成失败。");
+    }
+
+    promoVideoNoteNode.textContent = payload.detail || "视频仍在生成中，请稍等。";
+    promoPollingTimer = window.setTimeout(() => pollPromoVideo(taskId), 8000);
+  } catch (error) {
+    console.error(error);
+    setPromoStatus(error.message || "视频查询失败。");
+    stopPromoVideoPolling();
+  }
+}
+
+function stopPromoVideoPolling() {
+  if (promoPollingTimer) {
+    window.clearTimeout(promoPollingTimer);
+    promoPollingTimer = null;
+  }
 }
